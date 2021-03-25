@@ -6,10 +6,6 @@ jobs:
     steps:
       - checkout
       - run:
-          name: version version
-          command: |
-            python3 version.py
-      - run:
           command: |
            python setup.py sdist bdist_wheel
   test_pypi_publish:
@@ -32,6 +28,10 @@ jobs:
       - image: cimg/python:3.9.2
     steps:
       - checkout  # checkout source code to working directory
+      - run:
+          name: version version
+          command: |
+            python3 version.py
       - run:
           command: |  # create whl, install twine and publish to PyPI
             python setup.py sdist bdist_wheel

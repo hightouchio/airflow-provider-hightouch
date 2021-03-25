@@ -15,13 +15,17 @@ class HightouchHook(HttpHook):
     :type api_version: str
     """
 
+    PENDING = "pending"
+    SUCCESS = "succeeded"
+    RUNNING = "running"
+    ERROR = "error"
+
     def __init__(
-        self,
-        hightouch_conn_id: str = "hightouch_default",
-        api_version: Optional[str] = "v1",
+        self, hightouch_conn_id: str = "hightouch_default", api_version: str = "v1"
     ):
-        super().__init__(http_conn_id=hightouch_conn_id)
+        self.hightouch_conn_id = hightouch_conn_id
         self.api_version = api_version
+        super().__init__(http_conn_id=hightouch_conn_id)
 
     def poll(
         self, sync_id: int, wait_seconds: float = 3, timeout: Optional[int] = 3600
@@ -29,7 +33,7 @@ class HightouchHook(HttpHook):
         """
         Polls the Hightouch API for sync status
 
-        :param sync_id: Required. Id of the Hightouch sync.
+        :param sync_id: Required. Id of the Hightouch sync to poll.
         :type sync_id: int
         :param wait_seconds: Optional. Number of seconds between checks.
         :type wait_seconds: float
@@ -45,7 +49,7 @@ class HightouchHook(HttpHook):
                 )
             time.sleep(wait_seconds)
             try:
-                job = self.get_sync(sync_id=sync_id)
+                job = self.get_sync_status(sync_id=sync_id)
                 state = job.json()["sync"][
                     "status"
                 ]  # TODO: Get state schema from Ernest
@@ -58,11 +62,11 @@ class HightouchHook(HttpHook):
                 continue
 
             # TODO: Handle all errors
-            if state == "RUNNING":
+            if state in (self.RUNNING, self.PENDING):
                 continue
-            if state == "SUCCESS":
+            if state == self.SUCCESS:
                 break
-            if state == "ERROR":
+            if state == self.ERROR:
                 raise AirflowException(f"Job {sync_id} failed to complete")
             else:
                 raise AirflowException("Unhandled state: {state}")
@@ -70,24 +74,28 @@ class HightouchHook(HttpHook):
     def submit_sync(self, sync_id: int) -> Any:
         """
         Submits a request to start a Sync
-
-        TODO: What does the payload look like here?
-
         """
+        # Unfortunately the HTTP method is defined in the Hook as a class
+        self.method = "POST"
+        conn = self.get_connection(self.hightouch_conn_id)
+        token = conn.password
+
         return self.run(
-            endpoint=f"api/{self.api_version}/sync",
-            json={"id": sync_id},
-            headers={"accept": "application/json"},
-            method="POST",
+            endpoint=f"api/{self.api_version}/rest/triggerSync/{sync_id}",
+            headers={"accept": "application/json", "Authorization": f"Bearer {token}"},
         )
 
-    def get_sync(self, sync_id: int) -> Any:
+    def get_sync_status(self, sync_id: int) -> Any:
         """
         Retrieves the current sync status
-
-        TODO: What does the payload look like here?
         """
+        # Unfortunately the HTTP method is defined in the Hook as a class
+        # attribute
+        self.method = "GET"
+        conn = self.get_connection(self.hightouch_conn_id)
+        token = conn.password
+
         return self.run(
-            endpoint=f"api/{self.api_version}/sync/{sync_id}",
-            headers={"accept": "application/json"},
+            endpoint=f"api/{self.api_version}/rest/syncStatus/{sync_id}",
+            headers={"accept": "application/json", "Authorization": f"Bearer {token}"},
         )

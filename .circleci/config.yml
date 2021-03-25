@@ -1,0 +1,60 @@
+version: 2.1
+jobs:
+  build:
+    docker:
+      - image: cimg/python:3.9.2
+    steps:
+      - checkout
+      - run:
+          name: version version
+          command: |
+            python3 version.py
+      - run:
+          command: |
+           python setup.py sdist bdist_wheel
+  test_pypi_publish:
+    docker:
+      - image: cimg/python:3.9.2
+    steps:
+      - checkout  # checkout source code to working directory
+      - run:
+          name: deploy to pypi-test
+          command: |  # create whl, install twine and publish to Test PyPI
+            python setup.py sdist bdist_wheel
+            pip install twine
+            pip run twine upload --repository testpypi dist/*
+          environment:
+            TWINE_USER: "__token__"
+            TWINE_PASSWORD: $PYPY_TEST_TOKEN
+
+  pypi_publish:
+    docker:
+      - image: cimg/python:3.9.2
+    steps:
+      - checkout  # checkout source code to working directory
+      - run:
+          command: |  # create whl, install twine and publish to PyPI
+            python setup.py sdist bdist_wheel
+            pip install twine
+            pip run twine upload dist/*
+          environment:
+            TWINE_USER: "__token__"
+            TWINE_PASSWORD: $PYPY_TOKEN
+workflows:
+  build_test_publish:
+    jobs:
+      - build
+      - test_pypi_publish:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore:
+                - main
+      - pypi_publish:
+          requires:
+            - build
+          filters:
+            branches:
+              only:
+                - main

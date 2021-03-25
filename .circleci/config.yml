@@ -7,7 +7,8 @@ jobs:
       - checkout
       - run:
           command: |
-           python setup.py sdist bdist_wheel
+           python3 -m pip install --upgrade build
+           python3 -m build
   test_pypi_publish:
     docker:
       - image: cimg/python:3.9.2
@@ -16,9 +17,10 @@ jobs:
       - run:
           name: deploy to pypi-test
           command: |  # create whl, install twine and publish to Test PyPI
-            python setup.py sdist bdist_wheel
-            pip install twine
-            pip run twine upload --repository testpypi dist/*
+            python3 -m pip install --upgrade build
+            python3 -m build
+            pip3 install twine
+            twine upload --repository testpypi dist/*
           environment:
             TWINE_USER: "__token__"
             TWINE_PASSWORD: $PYPY_TEST_TOKEN
@@ -34,9 +36,10 @@ jobs:
             python3 version.py
       - run:
           command: |  # create whl, install twine and publish to PyPI
-            python setup.py sdist bdist_wheel
-            pip install twine
-            pip run twine upload dist/*
+            python3 -m pip install --upgrade build
+            python3 -m build
+            pip3 install twine
+            twine upload dist/*
           environment:
             TWINE_USER: "__token__"
             TWINE_PASSWORD: $PYPY_TOKEN

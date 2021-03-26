@@ -70,6 +70,8 @@ workflows:
             branches:
               ignore:
                 - main
+            tags:
+              only: /.*/
       - pypi_publish:
           requires:
             - build_wheels

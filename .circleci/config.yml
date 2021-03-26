@@ -68,8 +68,8 @@ workflows:
             - build_wheels
           filters:
             branches:
-              ignore:
-                - main
+              only:
+                - testpypi
       - pypi_publish:
           requires:
             - build_wheels

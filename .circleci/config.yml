@@ -70,9 +70,20 @@ workflows:
             branches:
               only:
                 - testpypi
+
+  build_tag_publish:
+    jobs:
+      - build_wheels:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /[0-9].+/
       - pypi_publish:
           requires:
             - build_wheels
           filters:
+            branches:
+              ignore: /.*/
             tags:
-              only: /.*/
+              only: /[0-9].+/

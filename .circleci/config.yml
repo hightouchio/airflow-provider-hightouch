@@ -9,15 +9,18 @@ jobs:
           command: |
            python3 -m pip install --upgrade build
            python3 -m build
-      - store_artifacts:
-          path: ./dist
-          destination: dist
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - dist
 
   test_pypi_publish:
     docker:
       - image: cimg/python:3.9.2
     steps:
       - checkout  # checkout source code to working directory
+      - attach_workspace:
+          at: ~/project/
       - run:
           name: init .pypirc
           command: |
@@ -37,6 +40,8 @@ jobs:
       - image: cimg/python:3.9.2
     steps:
       - checkout  # checkout source code to working directory
+      - attach_workspace:
+          at: ~/project/
       - run:
           name: version version
           command: |
@@ -59,17 +64,17 @@ jobs:
 workflows:
   build_test_publish:
     jobs:
-      - build
+      - build_wheels
       - test_pypi_publish:
           requires:
-            - build
+            - build_wheels
           filters:
             branches:
               ignore:
                 - main
       - pypi_publish:
           requires:
-            - build
+            - build_wheels
           filters:
             branches:
               only:

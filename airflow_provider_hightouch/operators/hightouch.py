@@ -50,7 +50,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
         try:
             message = result.json()
         except json.JSONDecodeError:
-            message = result.content
+            message = result.text
 
         if result.status_code == 200:
             self.log.info(

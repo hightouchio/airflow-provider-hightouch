@@ -74,6 +74,7 @@ workflows:
           requires:
             - build_wheels
           filters:
+            tags:
+              only: /.*/
             branches:
-              only:
-                - main
+              ignore: testpypi

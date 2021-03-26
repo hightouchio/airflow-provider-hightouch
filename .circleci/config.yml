@@ -1,6 +1,6 @@
 version: 2.1
 jobs:
-  build:
+  build_wheels:
     docker:
       - image: cimg/python:3.9.2
     steps:
@@ -9,6 +9,9 @@ jobs:
           command: |
            python3 -m pip install --upgrade build
            python3 -m build
+      - store_artifacts:
+          path: ./dist
+          destination: dist
 
   test_pypi_publish:
     docker:

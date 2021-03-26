@@ -31,8 +31,9 @@ jobs:
       - run:
           name: deploy to pypi-test
           command: |  # create whl, install twine and publish to Test PyPI
-            python3 -m pip install --upgrade build twine
+            python3 -m pip install --upgrade build
             make build
+            pip3 install twine
             twine upload --repository testpypi dist/*
 
   pypi_publish:
@@ -53,6 +54,7 @@ jobs:
           command: |  # create whl, install twine and publish to PyPI
             python3 -m pip install --upgrade build twine
             make build
+            pip3 install twine
             twine upload dist/*
           environment:
             TWINE_USER: "__token__"

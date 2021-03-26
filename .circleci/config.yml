@@ -56,9 +56,6 @@ jobs:
             make build
             pip3 install twine
             twine upload dist/*
-          environment:
-            TWINE_USER: "__token__"
-            TWINE_PASSWORD: $PYPY_TOKEN
 workflows:
   build_test_publish:
     jobs:

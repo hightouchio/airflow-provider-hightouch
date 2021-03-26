@@ -8,11 +8,12 @@ jobs:
       - run:
           command: |
            python3 -m pip install --upgrade build
-           python3 -m build
+           make build
       - persist_to_workspace:
           root: ~/project
           paths:
             - dist
+            - build
 
   test_pypi_publish:
     docker:
@@ -30,9 +31,8 @@ jobs:
       - run:
           name: deploy to pypi-test
           command: |  # create whl, install twine and publish to Test PyPI
-            python3 -m pip install --upgrade build
-            python3 -m build
-            pip3 install twine
+            python3 -m pip install --upgrade build twine
+            make build
             twine upload --repository testpypi dist/*
 
   pypi_publish:
@@ -43,9 +43,6 @@ jobs:
       - attach_workspace:
           at: ~/project/
       - run:
-          name: version version
-          command: |
-      - run:
           name: init .pypirc
           command: |
             echo -e "[pypi]" >> ~/.pypirc
@@ -54,9 +51,8 @@ jobs:
             python3 version.py
       - run:
           command: |  # create whl, install twine and publish to PyPI
-            python3 -m pip install --upgrade build
-            python3 -m build
-            pip3 install twine
+            python3 -m pip install --upgrade build twine
+            make build
             twine upload dist/*
           environment:
             TWINE_USER: "__token__"

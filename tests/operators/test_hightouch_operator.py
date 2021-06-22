@@ -1,3 +1,16 @@
+"""
+Unittest module to test Hightouch Operator.
+
+Requires the unittest and requests-mock Python libraries.
+
+Run test:
+
+    python3 -m unittest tests.operators.test_hightouch_operator.TestHightouchOperator
+
+"""
+
+import requests_mock
+import unittest
 from unittest import mock
 
 from airflow_provider_hightouch.operators.hightouch import HightouchTriggerSyncOperator
@@ -7,7 +20,9 @@ from airflow_provider_hightouch.operators.hightouch import HightouchTriggerSyncO
     "os.environ",
     AIRFLOW_CONN_HIGHTOUCH_DEFAULT="http://https%3A%2F%2Ftest.hightouch.io%2F",
 )
-class TestHightouchHook:
+class TestHightouchOperator(unittest.TestCase):
+
+    @requests_mock.mock()
     def test_hightouch_operator(self, requests_mock):
         requests_mock.post(
             "https://test.hightouch.io/api/v1/rest/triggerSync/1",

@@ -77,13 +77,6 @@ workflows:
             tags:
               only: /[0-9].+/
 
-      - pypi_test:
-          requires:
-            - build_wheels
-          filters:
-            branches:
-              only: stage
-
       - pypi_publish:
           requires:
             - build_wheels

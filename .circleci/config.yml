@@ -76,6 +76,7 @@ workflows:
               ignore: /.*/
             tags:
               only: /[0-9].+/
+
       - pypi_publish:
           requires:
             - build_wheels

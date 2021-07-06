@@ -21,11 +21,22 @@ class HightouchTriggerSyncOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`#TODO: add link to docs`
+        :ref:`https://hightouch.io/docs/integrations/airflow/`
 
-    :param api_version: Optional. Hightouch API version
+    :param sync_id: ID of the sync to trigger
+    :type sync_id: int
+    :param connection_id: Name of the connection to use, defaults to hightouch_default
+    :type connection_id: str
+    :param api_version: Hightouch API version. Only v2 is supported.
     :type api_version: str
-    :param synchronous: Optional. Whether to wait
+    :param synchronous: Whether to wait for the sync to complete before completing the task
+    :type synchronous: bool
+    :param error_on_warning: Should sync warnings be treated as errors or ignored?
+    :type error_on_warning: bool
+    :param wait_seconds: Time to wait in between subsequent polls to the API.
+    :type wait_seconds: float
+    :param timeout: Maximum time to wait for a sync to complete before aborting
+    :type timeout: int
     """
 
     operator_extra_links = (HightouchLink(),)
@@ -80,7 +91,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
 
             latest_sync_run_id = message["latest_sync_run_id"]
 
-            run_result = hook.poll(
+            hook.poll(
                 self.sync_id,
                 self.wait_seconds,
                 self.timeout,

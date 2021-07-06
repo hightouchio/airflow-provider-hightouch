@@ -25,6 +25,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
 
     :param api_version: Optional. Hightouch API version
     :type api_version: str
+    :param synchronous: Optional. Whether to wait
     """
 
     operator_extra_links = (HightouchLink(),)
@@ -34,13 +35,21 @@ class HightouchTriggerSyncOperator(BaseOperator):
         self,
         sync_id: int,
         connection_id: str = "hightouch_default",
-        api_version: str = "v1",
+        api_version: str = "v2",
+        synchronous: bool = False,
+        error_on_warning: bool = False,
+        wait_seconds: float = 3,
+        timeout: int = 3600,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.hightouch_conn_id = connection_id
         self.api_version = api_version
         self.sync_id = sync_id
+        self.error_on_warning = error_on_warning
+        self.synchronous = synchronous
+        self.wait_seconds = wait_seconds
+        self.timeout = timeout
 
     def execute(self, context) -> None:
         """Start a Hightouch Sync Run"""
@@ -52,11 +61,9 @@ class HightouchTriggerSyncOperator(BaseOperator):
         except json.JSONDecodeError:
             message = result.text
 
-        if result.status_code == 200:
-            self.log.info(
-                "Successfully sent request to start a run for job: %s", self.sync_id
-            )
-            return message
+        if result.status_code in (400, 404):
+            self.log.error("Bad request received. Does the sync id specified exist?")
+            raise AirflowException(message)
 
         if result.status_code == 403:
             self.log.error(
@@ -64,9 +71,23 @@ class HightouchTriggerSyncOperator(BaseOperator):
             )
             raise AirflowException(message)
 
-        if result.status_code == 400:
-            self.log.error("Bad request received. Does the sync id specified exist?")
-            raise AirflowException(message)
+        if result.status_code == 200:
+            self.log.info(
+                "Successfully sent request to start a run for job: %s", self.sync_id
+            )
+            if not self.synchronous:
+                return message
 
+            latest_sync_run_id = message["latest_sync_run_id"]
+
+            run_result = hook.poll(
+                self.sync_id,
+                self.wait_seconds,
+                self.timeout,
+                latest_sync_run_id=latest_sync_run_id,
+                error_on_warning=self.error_on_warning,
+            )
+
+            return message
         self.log.error("Unhandled exception: %s", message)
         raise AirflowException(message)

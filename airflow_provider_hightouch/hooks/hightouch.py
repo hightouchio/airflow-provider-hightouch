@@ -4,6 +4,8 @@ from typing import Any, Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
+from airflow_provider_hightouch import __version__
+
 
 class HightouchHook(HttpHook):
     """
@@ -15,20 +17,31 @@ class HightouchHook(HttpHook):
     :type api_version: str
     """
 
+    CANCELLED = "cancelled"
+    FAILED = "failed"
     PENDING = "pending"
-    SUCCESS = "succeeded"
-    RUNNING = "running"
-    ERROR = "error"
+    WARNING = "warning"
+    SUCCESS = "success"
+    QUERYING = "querying"
+    PROCESSING = "processing"
+    ABORTED = "aborted"
 
     def __init__(
-        self, hightouch_conn_id: str = "hightouch_default", api_version: str = "v1"
+        self, hightouch_conn_id: str = "hightouch_default", api_version: str = "v2"
     ):
         self.hightouch_conn_id = hightouch_conn_id
         self.api_version = api_version
+        if api_version != "v2":
+            raise AirflowException("Only v2 of the API is currently supported")
         super().__init__(http_conn_id=hightouch_conn_id)
 
     def poll(
-        self, sync_id: int, wait_seconds: float = 3, timeout: Optional[int] = 3600
+        self,
+        sync_id: int,
+        wait_seconds: float = 3,
+        timeout: int = 3600,
+        latest_sync_run_id: Optional[int] = None,
+        error_on_warning: bool = False,
     ) -> None:
         """
         Polls the Hightouch API for sync status
@@ -39,6 +52,13 @@ class HightouchHook(HttpHook):
         :type wait_seconds: float
         :param timeout: Optional. How many seconds to wait for job to complete.
         :type timeout: int
+        :param latest_sync_run_id:: Optional. When provided, returns the status
+            for the sync run immediately following the sync_run_id provided.
+            Otherwise, return the status for the latest run.
+        :type latest_sync_run_id: int
+        :param error_on_warning: Whether Hightouch warnings should be considered
+            failures in the Airflow dag
+        :type error_on_warning: bool
         """
         state = None
         start = time.monotonic()
@@ -49,10 +69,14 @@ class HightouchHook(HttpHook):
                 )
             time.sleep(wait_seconds)
             try:
-                job = self.get_sync_status(sync_id=sync_id)
-                state = job.json()["sync"][
-                    "status"
-                ]  # TODO: Get state schema from Ernest
+                job = self.get_sync_status(
+                    sync_id=sync_id, latest_sync_run_id=latest_sync_run_id
+                )
+                state = job.json()["sync"]["sync_status"]
+
+            except KeyError:
+                self.log.warning("No status available for the provided sync run.")
+                break
 
             except AirflowException as err:
                 self.log.info(
@@ -61,41 +85,62 @@ class HightouchHook(HttpHook):
                 )
                 continue
 
-            # TODO: Handle all errors
-            if state in (self.RUNNING, self.PENDING):
+            if state in (self.CANCELLED, self.FAILED, self.ABORTED):
+                raise AirflowException(
+                    f"Job {sync_id} failed to complete with status {state}"
+                )
+            if state in (self.PENDING, self.QUERYING, self.PROCESSING):
                 continue
+            if state == self.WARNING:
+                self.log.warning(f"Job {sync_id} completed but with warnings")
+                if error_on_warning:
+                    raise AirflowException(
+                        f"Job {sync_id} failed to complete with status {state}"
+                    )
+                break
             if state == self.SUCCESS:
                 break
-            if state == self.ERROR:
-                raise AirflowException(f"Job {sync_id} failed to complete")
-            else:
-                raise AirflowException("Unhandled state: {state}")
 
-    def submit_sync(self, sync_id: int) -> Any:
+            raise AirflowException("Unhandled state: {state}")
+
+    def submit_sync(
+        self,
+        sync_id: int,
+    ) -> Any:
         """
         Submits a request to start a Sync
         """
-        # Unfortunately the HTTP method is defined in the Hook as a class
+        # Unfortunately the HTTP method is defined in the Hook as a class attr
         self.method = "POST"
         conn = self.get_connection(self.hightouch_conn_id)
         token = conn.password
 
+        endpoint = f"api/{self.api_version}/rest/run/{sync_id}"
+        user_agent = f"AirflowHightouchOperator/" + __version__
         return self.run(
-            endpoint=f"api/{self.api_version}/rest/triggerSync/{sync_id}",
-            headers={"accept": "application/json", "Authorization": f"Bearer {token}"},
+            endpoint=endpoint,
+            headers={
+                "accept": "application/json",
+                "Authorization": f"Bearer {token}",
+                "User-Agent": user_agent,
+            },
         )
 
-    def get_sync_status(self, sync_id: int) -> Any:
+    def get_sync_status(
+        self, sync_id: int, latest_sync_run_id: Optional[int] = None
+    ) -> Any:
         """
         Retrieves the current sync status
         """
-        # Unfortunately the HTTP method is defined in the Hook as a class
-        # attribute
+        # Unfortunately the HTTP method is defined in the Hook as a class attr
         self.method = "GET"
         conn = self.get_connection(self.hightouch_conn_id)
         token = conn.password
 
+        endpoint = f"api/{self.api_version}/rest/sync/{sync_id}"
+        if latest_sync_run_id:
+            endpoint += "?latest_sync_run_id=" + str(latest_sync_run_id)
         return self.run(
-            endpoint=f"api/{self.api_version}/rest/syncStatus/{sync_id}",
+            endpoint=endpoint,
             headers={"accept": "application/json", "Authorization": f"Bearer {token}"},
         )

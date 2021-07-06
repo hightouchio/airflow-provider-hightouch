@@ -33,8 +33,11 @@ in the operator
 Starts a Hightouch Sync Run. Requires the `sync_id` for the sync you wish to
 run. You can find the `sync_id` in the browser url: `https://app.hightouch.io/syncs/[your-sync-id]`
 
-The run is asynchronous, and the task will be marked complete if the request
+The run is asynchronous by default, and the task will be marked complete if the request
 was successfully sent to the Hightouch API.
+
+However, you can request a synchronous request instead by passing `synchronous=True`
+to the operator.
 
 If the API key is not authorized or if the request is invalid the task will fail.
 If a run is already in progress, a new run will be triggered following the

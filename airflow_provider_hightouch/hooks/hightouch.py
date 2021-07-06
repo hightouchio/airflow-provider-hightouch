@@ -87,7 +87,7 @@ class HightouchHook(HttpHook):
 
             if state in (self.CANCELLED, self.FAILED, self.ABORTED):
                 raise AirflowException(
-                    f"Job {sync_id} failed to complete with stauts {state}"
+                    f"Job {sync_id} failed to complete with status {state}"
                 )
             if state in (self.PENDING, self.QUERYING, self.PROCESSING):
                 continue
@@ -95,7 +95,7 @@ class HightouchHook(HttpHook):
                 self.log.warning(f"Job {sync_id} completed but with warnings")
                 if error_on_warning:
                     raise AirflowException(
-                        f"Job {sync_id} failed to complete with stauts {state}"
+                        f"Job {sync_id} failed to complete with status {state}"
                     )
                 break
             if state == self.SUCCESS:

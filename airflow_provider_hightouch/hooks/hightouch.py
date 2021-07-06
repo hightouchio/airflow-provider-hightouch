@@ -4,6 +4,8 @@ from typing import Any, Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
+from airflow_provider_hightouch import __version__
+
 
 class HightouchHook(HttpHook):
     """
@@ -114,9 +116,14 @@ class HightouchHook(HttpHook):
         token = conn.password
 
         endpoint = f"api/{self.api_version}/rest/run/{sync_id}"
+        user_agent = f"AirflowHightouchOperator/" + __version__
         return self.run(
             endpoint=endpoint,
-            headers={"accept": "application/json", "Authorization": f"Bearer {token}"},
+            headers={
+                "accept": "application/json",
+                "Authorization": f"Bearer {token}",
+                "User-Agent": user_agent,
+            },
         )
 
     def get_sync_status(

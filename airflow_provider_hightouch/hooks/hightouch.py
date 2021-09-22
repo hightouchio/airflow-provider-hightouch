@@ -2,7 +2,11 @@ import time
 from typing import Any, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.providers.http.hooks.http import HttpHook
+
+try:
+    from airflow.providers.http.hooks.http import HttpHook
+except ImportError:
+    from airflow.hooks.http_hook import HttpHook
 
 from airflow_provider_hightouch import __version__
 

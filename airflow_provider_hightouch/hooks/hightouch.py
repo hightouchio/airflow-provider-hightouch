@@ -89,7 +89,7 @@ class HightouchHook(HttpHook):
                 )
                 continue
 
-            if state in (self.CANCELLED, self.FAILED, self.ABORTED):
+            if state in (self.CANCELLED, self.FAILED):
                 raise AirflowException(
                     f"Job {sync_id} failed to complete with status {state}"
                 )
@@ -144,7 +144,9 @@ class HightouchHook(HttpHook):
         endpoint = f"api/{self.api_version}/rest/sync/{sync_id}"
         if latest_sync_run_id:
             endpoint += "?latest_sync_run_id=" + str(latest_sync_run_id)
-        return self.run(
+        response = self.run(
             endpoint=endpoint,
             headers={"accept": "application/json", "Authorization": f"Bearer {token}"},
         )
+        self.log.info("Got response: %s", response.json())
+        return response

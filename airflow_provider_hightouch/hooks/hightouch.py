@@ -77,6 +77,7 @@ class HightouchHook(HttpHook):
                     sync_id=sync_id, latest_sync_run_id=latest_sync_run_id
                 )
                 state = job.json()["sync"]["sync_status"]
+                last_sync_run = job.json().get("last_sync_run", {})
 
             except KeyError:
                 self.log.warning("No status available for the provided sync run.")
@@ -89,12 +90,21 @@ class HightouchHook(HttpHook):
                 )
                 continue
 
+            if not last_sync_run:
+                self.log.info(
+                    "Last Sync Run is empty. A sync run was likely in progress already."
+                    + "Waiting for the previous run to complete."
+                )
+                continue
+
             if state in (self.CANCELLED, self.FAILED):
                 raise AirflowException(
                     f"Job {sync_id} failed to complete with status {state}"
                 )
+
             if state in (self.PENDING, self.QUERYING, self.PROCESSING):
                 continue
+
             if state == self.WARNING:
                 self.log.warning(f"Job {sync_id} completed but with warnings")
                 if error_on_warning:
@@ -102,6 +112,7 @@ class HightouchHook(HttpHook):
                         f"Job {sync_id} failed to complete with status {state}"
                     )
                 break
+
             if state == self.SUCCESS:
                 break
 

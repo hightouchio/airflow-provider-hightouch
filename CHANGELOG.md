@@ -1,3 +1,7 @@
+## 2.1.1
+
+* Adds support for the queued status from the API
+
 ## 2.1.0
 
 * Fixes a bug where starting a sync when a sync is already in progress does not

@@ -29,6 +29,7 @@ class HightouchHook(HttpHook):
     QUERYING = "querying"
     PROCESSING = "processing"
     ABORTED = "aborted"
+    QUEUED = "queued"
 
     def __init__(
         self, hightouch_conn_id: str = "hightouch_default", api_version: str = "v2"
@@ -102,7 +103,7 @@ class HightouchHook(HttpHook):
                     f"Job {sync_id} failed to complete with status {state}"
                 )
 
-            if state in (self.PENDING, self.QUERYING, self.PROCESSING):
+            if state in (self.PENDING, self.QUERYING, self.PROCESSING, self.QUEUED):
                 continue
 
             if state == self.WARNING:

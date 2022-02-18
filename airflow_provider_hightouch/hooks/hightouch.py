@@ -117,7 +117,7 @@ class HightouchHook(HttpHook):
             if state == self.SUCCESS:
                 break
 
-            raise AirflowException("Unhandled state: {state}")
+            raise AirflowException(f"Unhandled state: {state}")
 
     def submit_sync(
         self,

@@ -1,3 +1,8 @@
+## 2.1.2
+
+* #9 Fixes a bug with a missing f in logging unhandled states, and a bug
+in an assertion test
+
 ## 2.1.1
 
 * Adds support for the queued status from the API

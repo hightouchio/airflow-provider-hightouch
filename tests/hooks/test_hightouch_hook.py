@@ -94,7 +94,7 @@ class TestHightouchHook(unittest.TestCase):
         hook = HightouchHook()
         with pytest.raises(AirflowException) as excinfo:
             hook.poll(sync_id=1, wait_seconds=1, timeout=5, error_on_warning=True)
-            assert "Job 1 failed to complete with status warning" in str(excinfo.value)
+        assert "Job 1 failed to complete with status warning" in str(excinfo.value)
 
     @requests_mock.mock()
     def test_poll_success_ignore_warning(self, requests_mock):
@@ -114,7 +114,18 @@ class TestHightouchHook(unittest.TestCase):
         hook = HightouchHook()
         with pytest.raises(AirflowException) as excinfo:
             hook.poll(sync_id=1, wait_seconds=0.11, timeout=5, error_on_warning=True)
-            assert "Job 1 failed to complete with status failed" in str(excinfo.value)
+        assert "Job 1 failed to complete with status failed" in str(excinfo.value)
+
+    @requests_mock.mock()
+    def test_poll_invalid_status(self, requests_mock):
+        requests_mock.get(
+            "https://test.hightouch.io/api/v2/rest/sync/1",
+            json=payload_factory("invalid_status"),
+        )
+        hook = HightouchHook()
+        with pytest.raises(AirflowException) as excinfo:
+            hook.poll(sync_id=1, wait_seconds=0.11, timeout=5, error_on_warning=True)
+        assert "Unhandled state: invalid_status" in str(excinfo.value)
 
     @requests_mock.mock()
     def test_poll_pending_then_complete(self, requests_mock):
@@ -141,9 +152,9 @@ class TestHightouchHook(unittest.TestCase):
         hook = HightouchHook()
         with pytest.raises(AirflowException) as excinfo:
             hook.poll(sync_id=1, wait_seconds=0.5, timeout=1, error_on_warning=True)
-            assert "Timeout: Hightouch job 1 was not ready after 1 seconds." in str(
-                excinfo.value
-            )
+        assert "Timeout: Hightouch job 1 was not ready after 1 seconds." in str(
+            excinfo.value
+        )
 
     @requests_mock.mock()
     def test_poll_no_last_sync_run_retries(self, requests_mock):

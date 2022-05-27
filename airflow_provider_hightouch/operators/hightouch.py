@@ -1,10 +1,11 @@
-import json
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.utils.decorators import apply_defaults
 
 from airflow_provider_hightouch.hooks.hightouch import HightouchHook
+from airflow_provider_hightouch.utils import parse_sync_run_details
 
 
 class HightouchLink(BaseOperatorLink):
@@ -25,9 +26,10 @@ class HightouchTriggerSyncOperator(BaseOperator):
 
     :param sync_id: ID of the sync to trigger
     :type sync_id: int
+    :param sync_slug: Slug of the sync to trigger
     :param connection_id: Name of the connection to use, defaults to hightouch_default
     :type connection_id: str
-    :param api_version: Hightouch API version. Only v2 is supported.
+    :param api_version: Hightouch API version. Only v3 is supported.
     :type api_version: str
     :param synchronous: Whether to wait for the sync to complete before completing the task
     :type synchronous: bool
@@ -44,10 +46,11 @@ class HightouchTriggerSyncOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        sync_id: int,
+        sync_id: Optional[str] = None,
+        sync_slug: Optional[str] = None,
         connection_id: str = "hightouch_default",
-        api_version: str = "v2",
-        synchronous: bool = False,
+        api_version: str = "v3",
+        synchronous: bool = True,
         error_on_warning: bool = False,
         wait_seconds: float = 3,
         timeout: int = 3600,
@@ -57,6 +60,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
         self.hightouch_conn_id = connection_id
         self.api_version = api_version
         self.sync_id = sync_id
+        self.sync_slug = sync_slug
         self.error_on_warning = error_on_warning
         self.synchronous = synchronous
         self.wait_seconds = wait_seconds
@@ -64,41 +68,39 @@ class HightouchTriggerSyncOperator(BaseOperator):
 
     def execute(self, context) -> None:
         """Start a Hightouch Sync Run"""
-        hook = HightouchHook(hightouch_conn_id=self.hightouch_conn_id)
-        result = hook.submit_sync(self.sync_id)
+        hook = HightouchHook(
+            hightouch_conn_id=self.hightouch_conn_id,
+            api_version=self.api_version,
+        )
 
-        try:
-            message = result.json()
-        except json.JSONDecodeError:
-            message = result.text
-
-        if result.status_code in (400, 404):
-            self.log.error("Bad request received. Does the sync id specified exist?")
-            raise AirflowException(message)
-
-        if result.status_code == 403:
-            self.log.error(
-                "API not authorized. Make sure the password is set to your API token in your Hightouch Airflow connection"
+        if not self.sync_id and not self.sync_slug:
+            raise AirflowException(
+                "One of sync_id or sync_slug must be provided to trigger a sync"
             )
-            raise AirflowException(message)
 
-        if result.status_code == 200:
-            self.log.info(
-                "Successfully sent request to start a run for job: %s", self.sync_id
-            )
-            if not self.synchronous:
-                return message
-
-            latest_sync_run_id = message["latest_sync_run_id"]
-
-            hook.poll(
+        if self.synchronous:
+            self.log.info("Start synchronous request to run a sync.")
+            hightouch_output = hook.sync_and_poll(
                 self.sync_id,
-                self.wait_seconds,
-                self.timeout,
-                latest_sync_run_id=latest_sync_run_id,
-                error_on_warning=self.error_on_warning,
+                self.sync_slug,
+                fail_on_warning=self.error_on_warning,
+                poll_interval=self.wait_seconds,
+                poll_timeout=self.timeout,
             )
+            try:
+                parsed_result = parse_sync_run_details(
+                    hightouch_output.sync_run_details
+                )
+                self.log.info("Sync completed successfully")
+                self.log.info(parsed_result)
+            except Exception:
+                self.log.warning("Sync ran successfully but failed to parse output.")
+                self.log.warning(hightouch_output)
 
-            return message
-        self.log.error("Unhandled exception: %s", message)
-        raise AirflowException(message)
+        else:
+            self.log.info("Start async request to run a sync.")
+            request_id = hook.start_sync(self.sync_id, self.sync_slug)
+            sync = self.sync_id or self.sync_slug
+            self.log.info(
+                "Successfully created request %s to start sync: %s", request_id, sync
+            )

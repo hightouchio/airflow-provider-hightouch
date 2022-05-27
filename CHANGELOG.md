@@ -1,3 +1,20 @@
+## 3.0.0
+
+
+### NEW: 
+
+* Uses the new Hightouch API Endpoint. This endpoint is now idempotent and more
+reliable and flexible.
+* Can trigger sync via ID or via Slug
+
+### BREAKING:
+
+* Syncs are now synchronous by default
+
+### FIXES:
+
+* 
+
 ## 2.1.2
 
 * #9 Fixes a bug with a missing f in logging unhandled states, and a bug

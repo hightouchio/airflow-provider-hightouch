@@ -94,7 +94,7 @@ class HightouchHook(HttpHook):
                 resp_dict = response.json()
                 return resp_dict["data"] if "data" in resp_dict else resp_dict
             except AirflowException as e:
-                self._log.error("Request to Hightouch API failed: %s", e)
+                self.log.error("Request to Hightouch API failed: %s", e)
                 if num_retries == self._request_max_retries:
                     break
                 num_retries += 1
@@ -189,9 +189,9 @@ class HightouchHook(HttpHook):
             )
 
             if run.status in TERMINAL_STATUSES:
-                self._log.info(f"Sync request status: {run.status}. Polling complete")
+                self.log.info(f"Sync request status: {run.status}. Polling complete")
                 if run.error:
-                    self._log.info("Sync Request Error: %s", run.error)
+                    self.log.info("Sync Request Error: %s", run.error)
 
                 if run.status == SUCCESS:
                     break
@@ -202,7 +202,7 @@ class HightouchHook(HttpHook):
                     f"{run.status} and error:  {run.error}"
                 )
             if run.status not in PENDING_STATUSES:
-                self._log.warning(
+                self.log.warning(
                     "Unexpected status: %s returned for sync %s and request %s. Will try "
                     "again, but if you see this error, please let someone at Hightouch know.",
                     run.status,

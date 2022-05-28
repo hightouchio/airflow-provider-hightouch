@@ -1,164 +1,263 @@
+import datetime
+import json
 import time
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
+from urllib.parse import urljoin
 
 from airflow.exceptions import AirflowException
+
+from airflow_provider_hightouch.consts import (
+    DEFAULT_POLL_INTERVAL,
+    HIGHTOUCH_API_BASE_V3,
+    PENDING_STATUSES,
+    SUCCESS,
+    TERMINAL_STATUSES,
+    WARNING,
+)
+from airflow_provider_hightouch.types import HightouchOutput
 
 try:
     from airflow.providers.http.hooks.http import HttpHook
 except ImportError:
     from airflow.hooks.http_hook import HttpHook
 
-from airflow_provider_hightouch import __version__
+from airflow_provider_hightouch import __version__, utils
 
 
 class HightouchHook(HttpHook):
     """
     Hook for Hightouch API
 
-    :param hightouch_conn_id: Required. The name of the Airflow connection
+    Args:
+        hightouch_conn_id (str):  The name of the Airflow connection
         with connection information for the Hightouch API
-    :param api_version: Opitional. Hightouch API version.
-    :type api_version: str
+        api_version: (optional(str)). Hightouch API version.
     """
 
-    CANCELLED = "cancelled"
-    FAILED = "failed"
-    PENDING = "pending"
-    WARNING = "warning"
-    SUCCESS = "success"
-    QUERYING = "querying"
-    PROCESSING = "processing"
-    ABORTED = "aborted"
-    QUEUED = "queued"
-
     def __init__(
-        self, hightouch_conn_id: str = "hightouch_default", api_version: str = "v2"
+        self,
+        hightouch_conn_id: str = "hightouch_default",
+        api_version: str = "v3",
+        request_max_retries: int = 3,
+        request_retry_delay: float = 0.5,
     ):
         self.hightouch_conn_id = hightouch_conn_id
         self.api_version = api_version
-        if api_version != "v2":
-            raise AirflowException("Only v2 of the API is currently supported")
+        self._request_max_retries = request_max_retries
+        self._request_retry_delay = request_retry_delay
+        if self.api_version not in ("v1", "v3"):
+            raise AirflowException(
+                "This version of the Hightouch Operator only supports the v1/v3 API."
+            )
         super().__init__(http_conn_id=hightouch_conn_id)
 
-    def poll(
-        self,
-        sync_id: int,
-        wait_seconds: float = 3,
-        timeout: int = 3600,
-        latest_sync_run_id: Optional[int] = None,
-        error_on_warning: bool = False,
-    ) -> None:
-        """
-        Polls the Hightouch API for sync status
+    @property
+    def api_base_url(self) -> str:
+        """Returns the correct API BASE URL depending on the API version."""
+        return HIGHTOUCH_API_BASE_V3
 
-        :param sync_id: Required. Id of the Hightouch sync to poll.
-        :type sync_id: int
-        :param wait_seconds: Optional. Number of seconds between checks.
-        :type wait_seconds: float
-        :param timeout: Optional. How many seconds to wait for job to complete.
-        :type timeout: int
-        :param latest_sync_run_id:: Optional. When provided, returns the status
-            for the sync run immediately following the sync_run_id provided.
-            Otherwise, return the status for the latest run.
-        :type latest_sync_run_id: int
-        :param error_on_warning: Whether Hightouch warnings should be considered
-            failures in the Airflow dag
-        :type error_on_warning: bool
+    def make_request(
+        self,
+        method: str,
+        endpoint: str,
+        data: Optional[Dict[str, Any]] = None,
+    ):
+        """Creates and sends a request to the desired Hightouch API endpoint
+        Args:
+            method (str): The http method use for this request (e.g. "GET", "POST").
+            endpoint (str): The Hightouch API endpoint to send this request to.
+            params (Optional(dict): Query parameters to pass to the API endpoint
+            body (Optional(dict): Body parameters to pass to the API endpoint
+        Returns:
+            Dict[str, Any]: Parsed json data from the response to this request
         """
-        state = None
-        start = time.monotonic()
+
+        conn = self.get_connection(self.hightouch_conn_id)
+        token = conn.password
+
+        user_agent = "AirflowHightouchOperator/" + __version__
+        headers = {
+            "accept": "application/json",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": user_agent,
+        }
+
+        num_retries = 0
         while True:
-            if timeout and start + timeout < time.monotonic():
-                raise AirflowException(
-                    f"Timeout: Hightouch job {sync_id} was not ready after {timeout} seconds."
-                )
-            time.sleep(wait_seconds)
             try:
-                job = self.get_sync_status(
-                    sync_id=sync_id, latest_sync_run_id=latest_sync_run_id
+                self.method = method
+                response = self.run(
+                    endpoint=urljoin(self.api_base_url, endpoint),
+                    data=data,
+                    headers=headers,
                 )
-                state = job.json()["sync"]["sync_status"]
-                last_sync_run = job.json().get("last_sync_run", {})
+                resp_dict = response.json()
+                return resp_dict["data"] if "data" in resp_dict else resp_dict
+            except AirflowException as e:
+                self.log.error("Request to Hightouch API failed: %s", e)
+                if num_retries == self._request_max_retries:
+                    break
+                num_retries += 1
+                time.sleep(self._request_retry_delay)
 
-            except KeyError:
-                self.log.warning("No status available for the provided sync run.")
-                break
+        raise AirflowException("Exceeded max number of retries.")
 
-            except AirflowException as err:
-                self.log.info(
-                    "Retrying. Hightouch API returned a server error when waiting for job: %s",
-                    err,
-                )
-                continue
+    def get_sync_run_details(
+        self, sync_id: str, sync_request_id: str
+    ) -> List[Dict[str, Any]]:
+        """Get details about a given sync run from the Hightouch API.
+        Args:
+            sync_id (str): The Hightouch Sync ID.
+            sync_request_id (str): The Hightouch Sync Request ID.
+        Returns:
+            Dict[str, Any]: Parsed json data from the response
+        """
+        params = {"runId": sync_request_id}
+        return self.make_request(
+            method="GET", endpoint=f"syncs/{sync_id}/runs", data=params
+        )
 
-            if not last_sync_run:
-                self.log.info(
-                    "Last Sync Run is empty. A sync run was likely in progress already."
-                    + "Waiting for the previous run to complete."
-                )
-                continue
+    def get_sync_details(self, sync_id: str) -> Dict[str, Any]:
+        """Get details about a given sync from the Hightouch API.
+        Args:
+            sync_id (str): The Hightouch Sync ID.
+        Returns:
+            Dict[str, Any]: Parsed json data from the response
+        """
+        return self.make_request(method="GET", endpoint=f"syncs/{sync_id}")
 
-            if state in (self.CANCELLED, self.FAILED):
-                raise AirflowException(
-                    f"Job {sync_id} failed to complete with status {state}"
-                )
+    def get_sync_from_slug(self, sync_slug: str) -> str:
+        """Get details about a given sync from the Hightouch API.
+        Args:
+            sync_id (str): The Hightouch Sync ID.
+        Returns:
+            Dict[str, Any]: Parsed json data from the response
+        """
+        return self.make_request(
+            method="GET", endpoint="syncs", data={"slug": sync_slug}
+        )[0]["id"]
 
-            if state in (self.PENDING, self.QUERYING, self.PROCESSING, self.QUEUED):
-                continue
+    def start_sync(
+        self, sync_id: Optional[str] = None, sync_slug: Optional[str] = None
+    ) -> str:
+        """Trigger a sync and initiate a sync run
+        Args:
+            sync_id (str): The Hightouch Sync ID.
+        Returns:
+            str: The sync request ID created by the Hightouch API.
+        """
+        if sync_id:
+            return self.make_request(
+                method="POST", endpoint="syncs/trigger", data={"syncId": sync_id}
+            )["id"]
+        if sync_slug:
+            return self.make_request(
+                method="POST", endpoint="syncs/trigger", data={"syncSlug": sync_slug}
+            )["id"]
+        raise AirflowException(
+            "One of sync_id or sync_slug must be provided to trigger a sync."
+        )
 
-            if state == self.WARNING:
-                self.log.warning(f"Job {sync_id} completed but with warnings")
-                if error_on_warning:
-                    raise AirflowException(
-                        f"Job {sync_id} failed to complete with status {state}"
-                    )
-                break
-
-            if state == self.SUCCESS:
-                break
-
-            raise AirflowException(f"Unhandled state: {state}")
-
-    def submit_sync(
+    def poll_sync(
         self,
-        sync_id: int,
-    ) -> Any:
+        sync_id: str,
+        sync_request_id: str,
+        fail_on_warning: bool = False,
+        poll_interval: float = DEFAULT_POLL_INTERVAL,
+        poll_timeout: Optional[float] = None,
+    ) -> HightouchOutput:
+        """Poll for the completion of a sync
+        Args:
+            sync_id (str): The Hightouch Sync ID
+            sync_request_id (str): The Hightouch Sync Request ID to poll against.
+            fail_on_warning (bool): Whether a warning is considered a failure for this sync.
+            poll_interval (float): The time in seconds that will be waited between succcessive polls
+            poll_timeout (float): The maximum time that will be waited before this operation
+                times out.
+        Returns:
+            Dict[str, Any]: Parsed json output from the API
         """
-        Submits a request to start a Sync
-        """
-        # Unfortunately the HTTP method is defined in the Hook as a class attr
-        self.method = "POST"
-        conn = self.get_connection(self.hightouch_conn_id)
-        token = conn.password
+        poll_start = datetime.datetime.now()
+        while True:
+            sync_run_details = self.get_sync_run_details(sync_id, sync_request_id)[0]
 
-        endpoint = f"api/{self.api_version}/rest/run/{sync_id}"
-        user_agent = f"AirflowHightouchOperator/" + __version__
-        return self.run(
-            endpoint=endpoint,
-            headers={
-                "accept": "application/json",
-                "Authorization": f"Bearer {token}",
-                "User-Agent": user_agent,
-            },
+            self.log.debug(sync_run_details)
+            run = utils.parse_sync_run_details(sync_run_details)
+            self.log.info(
+                f"Polling Hightouch Sync {sync_id}. Current status: {run.status}. "
+                f"{100 * run.completion_ratio}% completed."
+            )
+
+            if run.status in TERMINAL_STATUSES:
+                self.log.info(f"Sync request status: {run.status}. Polling complete")
+                if run.error:
+                    self.log.info("Sync Request Error: %s", run.error)
+
+                if run.status == SUCCESS:
+                    break
+                if run.status == WARNING and not fail_on_warning:
+                    break
+                raise AirflowException(
+                    f"Sync {sync_id} for request: {sync_request_id} failed with status: "
+                    f"{run.status} and error:  {run.error}"
+                )
+            if run.status not in PENDING_STATUSES:
+                self.log.warning(
+                    "Unexpected status: %s returned for sync %s and request %s. Will try "
+                    "again, but if you see this error, please let someone at Hightouch know.",
+                    run.status,
+                    sync_id,
+                    sync_request_id,
+                )
+            if (
+                poll_timeout
+                and datetime.datetime.now()
+                > poll_start + datetime.timedelta(seconds=poll_timeout)
+            ):
+                raise AirflowException(
+                    f"Sync {sync_id} for request: {sync_request_id}' time out after "
+                    f"{datetime.datetime.now() - poll_start}. Last status was {run.status}."
+                )
+
+            time.sleep(poll_interval)
+        sync_details = self.get_sync_details(sync_id)
+
+        return HightouchOutput(sync_details, sync_run_details)
+
+    def sync_and_poll(
+        self,
+        sync_id: Optional[str] = None,
+        sync_slug: Optional[str] = None,
+        fail_on_warning: bool = False,
+        poll_interval: float = DEFAULT_POLL_INTERVAL,
+        poll_timeout: Optional[float] = None,
+    ) -> HightouchOutput:
+        """
+        Initialize a sync run for the given sync id, and polls until it completes
+        Args:
+            sync_id (str): The Hightouch Sync ID
+            sync_request_id (str): The Hightouch Sync Request ID to poll against.
+            fail_on_warning (bool): Whether a warning is considered a failure for this sync.
+            poll_interval (float): The time in seconds that will be waited between succcessive polls
+            poll_timeout (float): The maximum time that will be waited before this operation
+                times out.
+        Returns:
+            :py:class:`~HightouchOutput`:
+                Object containing details about the Hightouch sync run
+        """
+        sync_request_id = self.start_sync(sync_id, sync_slug)
+
+        if not sync_id:
+            assert sync_slug
+            sync_id = sync_id or self.get_sync_from_slug(sync_slug=sync_slug)
+
+        assert sync_id or sync_slug
+        ht_output = self.poll_sync(
+            sync_id,
+            sync_request_id,
+            fail_on_warning=fail_on_warning,
+            poll_interval=poll_interval,
+            poll_timeout=poll_timeout,
         )
 
-    def get_sync_status(
-        self, sync_id: int, latest_sync_run_id: Optional[int] = None
-    ) -> Any:
-        """
-        Retrieves the current sync status
-        """
-        # Unfortunately the HTTP method is defined in the Hook as a class attr
-        self.method = "GET"
-        conn = self.get_connection(self.hightouch_conn_id)
-        token = conn.password
-
-        endpoint = f"api/{self.api_version}/rest/sync/{sync_id}"
-        if latest_sync_run_id:
-            endpoint += "?latest_sync_run_id=" + str(latest_sync_run_id)
-        response = self.run(
-            endpoint=endpoint,
-            headers={"accept": "application/json", "Authorization": f"Bearer {token}"},
-        )
-        self.log.info("Got response: %s", response.json())
-        return response
+        return ht_output

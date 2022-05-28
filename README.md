@@ -30,13 +30,13 @@ in the operator
 
 ### [HightouchTriggerSyncOperator](./airflow_provider_hightouch/operators/hightouch.py)
 
-Starts a Hightouch Sync Run. Requires the `sync_id` for the sync you wish to
-run. You can find the `sync_id` in the browser url: `https://app.hightouch.io/syncs/[your-sync-id]`
+Starts a Hightouch Sync Run. Requires the `sync_id` or the `sync_slug` for the sync you wish to
+run. 
 
-The run is asynchronous by default, and the task will be marked complete if the request
-was successfully sent to the Hightouch API.
+The run is synchronous by default, and the task will be marked complete once the 
+sync is successfully completed. 
 
-However, you can request a synchronous request instead by passing `synchronous=True`
+However, you can request a asynchronous request instead by passing `synchronous=False`
 to the operator.
 
 If the API key is not authorized or if the request is invalid the task will fail.
@@ -55,8 +55,8 @@ from airflow_provider_hightouch.operators.hightouch import HightouchTriggerSyncO
 
 with DAG(....) as dag:
 ...
-    my_task = HightouchTriggerSyncOperator(task_id="run_my_sync", sync_id=1)
-
+    my_task = HightouchTriggerSyncOperator(task_id="run_my_sync", sync_id="123")
+    my_other_task = HightouchTriggerSyncOperator(task_id="run_my_sync", sync_slug="my-sync-slug")
 ```
 
 ## Issues

@@ -1,3 +1,23 @@
+## 3.0.0
+
+This is a new API with some breaking changes. Please read the changes carefully
+before upgrading!
+
+### NEW:
+
+* Uses the new Hightouch API Endpoint. This endpoint is now idempotent and more
+reliable and flexible.
+
+* Can trigger sync via ID or via Slug
+
+* Logs information about the number of rows added, changed, and remove along
+with other sync run details
+
+### BREAKING:
+
+* Syncs are now synchronous by default, use `synchronous=False` for async
+operations.
+
 ## 2.1.2
 
 * #9 Fixes a bug with a missing f in logging unhandled states, and a bug

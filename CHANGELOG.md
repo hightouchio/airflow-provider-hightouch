@@ -1,3 +1,9 @@
+## 3.0.1
+
+### Fixes:
+
+* Correctly log parsed Sync run output
+
 ## 3.0.0
 
 This is a new API with some breaking changes. Please read the changes carefully

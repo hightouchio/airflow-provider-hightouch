@@ -92,7 +92,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
                     hightouch_output.sync_run_details
                 )
                 self.log.info("Sync completed successfully")
-                self.log.info(parsed_result)
+                self.log.info(dict(parsed_result))
             except Exception:
                 self.log.warning("Sync ran successfully but failed to parse output.")
                 self.log.warning(hightouch_output)

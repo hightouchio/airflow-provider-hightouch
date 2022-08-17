@@ -1,3 +1,9 @@
+## 3.0.2
+
+### Fixes:
+
+* Fixes issue with repeated warnings when using multiple HTTP connections
+
 ## 3.0.1
 
 ### Fixes:

@@ -17,7 +17,7 @@ In the Airflow Connections UI, create a new connection for Hightouch.
 
 * `Conn ID`: `hightouch_default`
 * `Conn Type`: `HTTP`
-* `Host`: `https://api.hightouch.io`
+* `Host`: `https://api.hightouch.com`
 * `Password`: enter the API key for your workspace.  You can generate an API
 key from your [Workspace Settings](https://app.hightouch.io/settings)
 

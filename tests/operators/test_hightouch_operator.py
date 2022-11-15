@@ -34,7 +34,7 @@ class TestHightouchOperator(unittest.TestCase):
                         "createdAt": "2022-02-08T16:11:04.712Z",
                         "finishedAt": "2022-02-08T16:11:11.698Z",
                         "querySize": 773,
-                        "status": "success",
+                        "status": "pending",
                         "completionRatio": 0.54,
                         "plannedRows": {
                             "addedCount": 773,
@@ -121,6 +121,6 @@ class TestHightouchOperator(unittest.TestCase):
             "https://test.hightouch.io/api/v1/syncs/trigger",
             json={"id": "123"},
         )
-        operator = HightouchTriggerSyncOperator(task_id="run", sync_id=1)
+        operator = HightouchTriggerSyncOperator(task_id="run", sync_id=1, timeout=10);
 
         operator.execute(context={})

@@ -53,7 +53,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
         synchronous: bool = True,
         error_on_warning: bool = False,
         wait_seconds: float = 3,
-        timeout: int = 3600,
+        timeout: int = 5,
         **kwargs,
     ):
         super().__init__(**kwargs)

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from airflow.sensors.base import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator, BaseOperatorLink
 
 from airflow.exceptions import AirflowException
 from airflow.utils.decorators import apply_defaults
@@ -11,6 +11,14 @@ from airflow_provider_hightouch.utils import parse_sync_run_details
 from airflow_provider_hightouch.consts import (
     TERMINAL_STATUSES
 )
+
+
+class HightouchLink(BaseOperatorLink):
+    name = "Hightouch"
+
+    def get_link(self, operator, dttm):
+        return "https://app.hightouch.io"
+
 
 class HightouchMonitorSyncRunOperator(BaseSensorOperator):
     """
@@ -61,9 +69,9 @@ class HightouchMonitorSyncRunOperator(BaseSensorOperator):
             self.sync_id,
             self.sync_run_id
         )
-        
+
         run = parse_sync_run_details(
-            hightouch_output
+            sync_run_details
         )
 
         if run.status in TERMINAL_STATUSES:
@@ -73,11 +81,11 @@ class HightouchMonitorSyncRunOperator(BaseSensorOperator):
 
             if run.status == SUCCESS:
                 return true
-            if run.status == WARNING and not error_on_warning
+            if run.status == WARNING and not self.error_on_warning:
                 return true
             raise AirflowException(
-                f"Sync {sync_id} for request: {sync_request_id} failed with status: "
+                f"Sync {self.sync_id} for request: {self.sync_request_id} failed with status: "
                 f"{run.status} and error:  {run.error}"
             )
-        
+
         return false

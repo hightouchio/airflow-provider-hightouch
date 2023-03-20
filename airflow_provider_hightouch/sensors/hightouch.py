@@ -52,7 +52,6 @@ class HightouchMonitorSyncRunOperator(BaseSensorOperator):
         self.error_on_warning = error_on_warning
 
     def poke(self, context) -> None:
-        """Start a Hightouch Sync Run"""
         hook = HightouchHook(
             hightouch_conn_id=self.hightouch_conn_id,
             api_version=self.api_version,

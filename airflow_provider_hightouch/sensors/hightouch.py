@@ -22,7 +22,7 @@ class HightouchLink(BaseOperatorLink):
 
 class HightouchMonitorSyncRunOperator(BaseSensorOperator):
     """
-    This operator triggers a run for a specified Sync in Hightouch via the
+    This operator monitors a specific sync run in Hightouch via the
     Hightouch API.
 
     .. seealso::
@@ -68,7 +68,7 @@ class HightouchMonitorSyncRunOperator(BaseSensorOperator):
         sync_run_details = hook.get_sync_run_details(
             self.sync_id,
             self.sync_run_id
-        )
+        )[0]
 
         run = parse_sync_run_details(
             sync_run_details

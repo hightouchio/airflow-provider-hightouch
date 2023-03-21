@@ -66,7 +66,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
         self.wait_seconds = wait_seconds
         self.timeout = timeout
 
-    def execute(self, context) -> None:
+    def execute(self, context) -> str:
         """Start a Hightouch Sync Run"""
         hook = HightouchHook(
             hightouch_conn_id=self.hightouch_conn_id,

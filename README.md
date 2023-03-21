@@ -15,26 +15,25 @@ pip install airflow-provider-hightouch
 
 In the Airflow Connections UI, create a new connection for Hightouch.
 
-* `Conn ID`: `hightouch_default`
-* `Conn Type`: `HTTP`
-* `Host`: `https://api.hightouch.com`
-* `Password`: enter the API key for your workspace.  You can generate an API
-key from your [Workspace Settings](https://app.hightouch.io/settings)
+- `Conn ID`: `hightouch_default`
+- `Conn Type`: `HTTP`
+- `Host`: `https://api.hightouch.com`
+- `Password`: enter the API key for your workspace. You can generate an API
+  key from your [Workspace Settings](https://app.hightouch.io/settings)
 
 The Operator uses the `hightouch_default` connection id by default, but
 if needed, you can create additional Airflow Connections and reference them
 in the operator
-
 
 ## Modules
 
 ### [HightouchTriggerSyncOperator](./airflow_provider_hightouch/operators/hightouch.py)
 
 Starts a Hightouch Sync Run. Requires the `sync_id` or the `sync_slug` for the sync you wish to
-run. 
+run.
 
-The run is synchronous by default, and the task will be marked complete once the 
-sync is successfully completed. 
+The run is synchronous by default, and the task will be marked complete once the
+sync is successfully completed.
 
 However, you can request a asynchronous request instead by passing `synchronous=False`
 to the operator.
@@ -43,6 +42,9 @@ If the API key is not authorized or if the request is invalid the task will fail
 If a run is already in progress, a new run will be triggered following the
 completion of the existing run.
 
+### [HightouchMonitorSyncRunSensor](./airflow_provider_hightouch/operators/hightouch.py)
+
+Monitors a Hightouch Sync Run. Requires the `sync_id` and the `sync_run_id` of the sync you wish to monitor.
 
 ## Examples
 

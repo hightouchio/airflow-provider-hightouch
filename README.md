@@ -32,6 +32,8 @@ in the operator
 Starts a Hightouch Sync Run. Requires the `sync_id` or the `sync_slug` for the sync you wish to
 run.
 
+Returns the `sync_run_id` of the sync it triggers.
+
 The run is synchronous by default, and the task will be marked complete once the
 sync is successfully completed.
 
@@ -42,9 +44,11 @@ If the API key is not authorized or if the request is invalid the task will fail
 If a run is already in progress, a new run will be triggered following the
 completion of the existing run.
 
-### [HightouchMonitorSyncRunSensor](./airflow_provider_hightouch/operators/hightouch.py)
+### [HightouchSyncRunSensor](./airflow_provider_hightouch/operators/hightouch.py)
 
 Monitors a Hightouch Sync Run. Requires the `sync_id` and the `sync_run_id` of the sync you wish to monitor.
+To obtain the `sync_run_id` of a sync triggered in Airflow, we recommend using XComs to pass the return value
+of `HightouchTriggerSyncOperator`.
 
 ## Examples
 

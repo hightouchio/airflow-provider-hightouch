@@ -1,7 +1,7 @@
 import os
 import sys
 
-__version__ = "3.0.3"
+__version__ = "4.0.0"
 
 
 def validate_version():

@@ -66,7 +66,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
         self.wait_seconds = wait_seconds
         self.timeout = timeout
 
-    def execute(self, context) -> None:
+    def execute(self, context) -> str:
         """Start a Hightouch Sync Run"""
         hook = HightouchHook(
             hightouch_conn_id=self.hightouch_conn_id,
@@ -93,6 +93,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
                 )
                 self.log.info("Sync completed successfully")
                 self.log.info(dict(parsed_result))
+                return parsed_result.id
             except Exception:
                 self.log.warning("Sync ran successfully but failed to parse output.")
                 self.log.warning(hightouch_output)
@@ -104,3 +105,4 @@ class HightouchTriggerSyncOperator(BaseOperator):
             self.log.info(
                 "Successfully created request %s to start sync: %s", request_id, sync
             )
+            return request_id

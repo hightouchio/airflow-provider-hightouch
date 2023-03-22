@@ -11,6 +11,7 @@ def parse_sync_run_details(sync_run_details) -> Type[SyncRunParsedOutput]:
     x.created_at = None
     x.started_at = None
     x.finished_at = None
+    x.id = sync_run_details.get("id")
 
     if sync_run_details.get("createdAt"):
         x.created_at = parser.parse(sync_run_details["createdAt"])

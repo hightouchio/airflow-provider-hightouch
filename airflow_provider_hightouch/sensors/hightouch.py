@@ -19,7 +19,7 @@ class HightouchLink(BaseOperatorLink):
         return "https://app.hightouch.io"
 
 
-class HightouchMonitorSyncRunOperator(BaseSensorOperator):
+class HightouchSyncRunSensor(BaseSensorOperator):
     """
     This operator monitors a specific sync run in Hightouch via the
     Hightouch API.

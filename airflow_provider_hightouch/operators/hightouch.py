@@ -43,7 +43,6 @@ class HightouchTriggerSyncOperator(BaseOperator):
 
     operator_extra_links = (HightouchLink(),)
 
-    @apply_defaults
     def __init__(
         self,
         sync_id: Optional[str] = None,

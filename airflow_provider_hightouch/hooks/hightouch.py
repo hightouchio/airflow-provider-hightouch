@@ -40,11 +40,13 @@ class HightouchHook(HttpHook):
         api_version: str = "v3",
         request_max_retries: int = 3,
         request_retry_delay: float = 0.5,
+        request_backoff_factor: float = 5.0
     ):
         self.hightouch_conn_id = hightouch_conn_id
         self.api_version = api_version
         self._request_max_retries = request_max_retries
         self._request_retry_delay = request_retry_delay
+        self._request_backoff_factor = request_backoff_factor
         if self.api_version not in ("v1", "v3"):
             raise AirflowException(
                 "This version of the Hightouch Operator only supports the v1/v3 API."
@@ -91,6 +93,7 @@ class HightouchHook(HttpHook):
                     data=data,
                     headers=headers,
                 )
+                
                 resp_dict = response.json()
                 return resp_dict["data"] if "data" in resp_dict else resp_dict
             except AirflowException as e:
@@ -99,7 +102,8 @@ class HightouchHook(HttpHook):
                     break
                 num_retries += 1
                 if "429" in str(e):
-                    time.sleep(10)
+                    backoff_delay = self._request_backoff_factor * (2 ** (num_retries + 1))
+                    time.sleep(backoff_delay)
                 else:
                     time.sleep(self._request_retry_delay)
 

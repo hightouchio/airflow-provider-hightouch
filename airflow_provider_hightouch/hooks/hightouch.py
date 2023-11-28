@@ -98,7 +98,10 @@ class HightouchHook(HttpHook):
                 if num_retries == self._request_max_retries:
                     break
                 num_retries += 1
-                time.sleep(self._request_retry_delay)
+                if "429" in str(e):
+                    time.sleep(10)
+                else:
+                    time.sleep(self._request_retry_delay)
 
         raise AirflowException("Exceeded max number of retries.")
 

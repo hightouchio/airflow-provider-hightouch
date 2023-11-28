@@ -40,7 +40,7 @@ class HightouchHook(HttpHook):
         api_version: str = "v3",
         request_max_retries: int = 3,
         request_retry_delay: float = 0.5,
-        request_backoff_factor: float = 5.0
+        request_backoff_factor: float = 10.0
     ):
         self.hightouch_conn_id = hightouch_conn_id
         self.api_version = api_version
@@ -102,7 +102,7 @@ class HightouchHook(HttpHook):
                     break
                 num_retries += 1
                 if "429" in str(e):
-                    backoff_delay = self._request_backoff_factor * (2 ** (num_retries + 1))
+                    backoff_delay = self._request_backoff_factor * (2 ** (num_retries - 1))
                     time.sleep(backoff_delay)
                 else:
                     time.sleep(self._request_retry_delay)

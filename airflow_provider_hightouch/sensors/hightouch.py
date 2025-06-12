@@ -40,6 +40,7 @@ class HightouchSyncRunSensor(BaseSensorOperator):
     """
 
     operator_extra_links = (HightouchLink(),)
+    template_fields = ["sync_run_id"]
 
     @apply_defaults
     def __init__(

@@ -1,3 +1,9 @@
+## 4.0.1
+
+### Fixes:
+
+- Added compatibility with Apache Airflow 3.x.x
+
 ## 4.0.0
 
 - Introduces HightouchSyncRunSensor, which monitors the success or failure of a sync run

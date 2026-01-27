@@ -2,7 +2,7 @@ from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.utils.decorators import apply_defaults
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.context import Context
 
 from airflow_provider_hightouch.hooks.hightouch import HightouchHook
@@ -13,7 +13,7 @@ from airflow_provider_hightouch.triggers.hightouch import HightouchTrigger
 class HightouchLink(BaseOperatorLink):
     name = "Hightouch"
 
-    def get_link(self, operator, dttm):
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
         return "https://app.hightouch.io"
 
 
@@ -45,7 +45,6 @@ class HightouchTriggerSyncOperator(BaseOperator):
 
     operator_extra_links = (HightouchLink(),)
 
-    @apply_defaults
     def __init__(
         self,
         sync_id: Optional[str] = None,

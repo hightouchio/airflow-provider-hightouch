@@ -134,7 +134,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
                         poll_interval=self.wait_seconds,
                         error_on_warning=self.error_on_warning,
                     ),
-                    method_name=None,
+                    method_name="execute_complete",
                 )
             else:
                 sync = self.sync_id or self.sync_slug
@@ -142,3 +142,8 @@ class HightouchTriggerSyncOperator(BaseOperator):
                     f"Successfully created request {request_id} to start sync: {sync}"
                 )
                 return request_id
+
+    def execute_complete(self, context, event=None):
+        if event:
+            self.log.info("Sync completed via trigger: %s", event)
+        return event

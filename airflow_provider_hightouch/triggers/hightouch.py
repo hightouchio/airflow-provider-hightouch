@@ -64,7 +64,6 @@ class HightouchTrigger(BaseTrigger):
         self.end_from_trigger = end_from_trigger
         self.poll_interval = poll_interval
         self.error_on_warning = error_on_warning
-        self.hook = HightouchAsyncHook(hightouch_conn_id=self.connection_id)
 
     def serialize(self) -> Tuple[str, Dict[str, Any]]:
         """
@@ -101,6 +100,7 @@ class HightouchTrigger(BaseTrigger):
             AsyncIterator[TriggerEvent]: Events indicating the status of the sync run,
             which can be "success", "failed", "timeout", or the current status during polling.
         """
+        hook = HightouchAsyncHook(hightouch_conn_id=self.connection_id)
         start_time = asyncio.get_event_loop().time()
 
         while True:
@@ -115,7 +115,7 @@ class HightouchTrigger(BaseTrigger):
 
             try:
                 # Fetch the current sync status
-                response = await self.hook.get_sync_run_details(
+                response = await hook.get_sync_run_details(
                     self.sync_id, self.sync_request_id
                 )
 

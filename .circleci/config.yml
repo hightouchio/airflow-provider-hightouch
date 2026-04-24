@@ -1,82 +1,104 @@
 version: 2.1
 jobs:
-  build_wheels:
+  test:
     docker:
-      - image: cimg/python:3.9.2
+      - image: cimg/python:3.12
     steps:
       - checkout
       - run:
-          command: |
-           python3 -m pip install --upgrade build
-           make build
+          name: Install uv
+          command: pip install uv
+      - run:
+          name: Install dependencies
+          command: uv sync
+      - run:
+          name: Run tests
+          command: uv run pytest tests/ --junitxml=test-results/junit.xml
+      - store_test_results:
+          path: test-results
+
+  build_wheels:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: Install uv
+          command: pip install uv
+      - run:
+          name: Build package
+          command: uv build
       - persist_to_workspace:
           root: ~/project
           paths:
             - dist
-            - build
 
   test_pypi_publish:
     docker:
-      - image: cimg/python:3.9.2
+      - image: cimg/python:3.12
     steps:
-      - checkout  # checkout source code to working directory
+      - checkout
       - attach_workspace:
           at: ~/project/
       - run:
-          name: init .pypirc
-          command: |
-            echo -e "[testpypi]" >> ~/.pypirc
-            echo -e "username = __token__" >> ~/.pypirc
-            echo -e "password = $PYPY_TEST_TOKEN" >> ~/.pypirc
+          name: Install uv
+          command: pip install uv
       - run:
-          name: deploy to pypi-test
-          command: |  # create whl, install twine and publish to Test PyPI
-            python3 -m pip install --upgrade build
-            make build
-            pip3 install twine
-            twine upload --repository testpypi dist/*
+          name: Publish to TestPyPI
+          command: UV_PUBLISH_TOKEN=$PYPY_TEST_TOKEN uv publish --publish-url https://test.pypi.org/legacy/
 
   pypi_publish:
     docker:
-      - image: cimg/python:3.9.2
+      - image: cimg/python:3.12
     steps:
-      - checkout  # checkout source code to working directory
+      - checkout
       - attach_workspace:
           at: ~/project/
       - run:
-          name: init .pypirc
-          command: |
-            echo -e "[pypi]" >> ~/.pypirc
-            echo -e "username = __token__" >> ~/.pypirc
-            echo -e "password = $PYPY_TOKEN" >> ~/.pypirc
-            python3 airflow_provider_hightouch/version.py
+          name: Install uv
+          command: pip install uv
       - run:
-          command: |  # create whl, install twine and publish to PyPI
-            python3 -m pip install --upgrade build twine
-            make build
-            pip3 install twine
-            twine upload dist/*
+          name: Validate version tag
+          command: |
+            VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+            if [ "$CIRCLE_TAG" != "$VERSION" ]; then
+              echo "Git tag ($CIRCLE_TAG) does not match version ($VERSION)"
+              exit 1
+            fi
+      - run:
+          name: Publish to PyPI
+          command: UV_PUBLISH_TOKEN=$PYPY_TOKEN uv publish
+
 workflows:
-  build_test_publish:
+  build:
     jobs:
-      - build_wheels
+      - test
+      - build_wheels:
+          requires:
+            - test
       - test_pypi_publish:
           requires:
             - build_wheels
           filters:
             branches:
-              only:
-                - testpypi
+              only: main
 
-  build_tag_publish:
+  publish:
     jobs:
-      - build_wheels:
+      - test:
           filters:
             branches:
               ignore: /.*/
             tags:
-              only: /[0-9].+/
-
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build_wheels:
+          requires:
+            - test
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - pypi_publish:
           requires:
             - build_wheels
@@ -84,4 +106,4 @@ workflows:
             branches:
               ignore: /.*/
             tags:
-              only: /[0-9].+/
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/

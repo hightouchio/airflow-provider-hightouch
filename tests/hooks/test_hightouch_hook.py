@@ -14,7 +14,7 @@ from unittest import mock
 
 import pytest
 import requests_mock
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 
 from airflow_provider_hightouch.hooks.hightouch import HightouchHook
 

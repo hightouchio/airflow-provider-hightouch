@@ -1,9 +1,45 @@
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
+requires = ["uv_build>=0.10.8,<0.11"]
+build-backend = "uv_build"
+
+[project]
+name = "airflow-provider-hightouch"
+version = "5.0.0"
+description = "Hightouch Provider for Airflow"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Hightouch", email = "pedram@hightouch.io" }]
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
 ]
-build-backend = "setuptools.build_meta"
+dependencies = [
+    "requests",
+    "apache-airflow>=3.0.0",
+    "apache-airflow-providers-http>=6.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/hightouchio/airflow-provider-hightouch"
+"Bug Tracker" = "https://github.com/hightouchio/airflow-provider-hightouch/issues"
+
+[project.entry-points."apache_airflow_provider"]
+provider_info = "airflow_provider_hightouch:get_provider_info"
+
+[dependency-groups]
+dev = [
+    "pytest>=6.2.3",
+    "requests-mock>=1.12",
+]
+
+[tool.uv.build-backend]
+module-root = ""
 
 [tool.isort]
 multi_line_output = 3
@@ -15,4 +51,4 @@ line_length = 88
 
 [tool.black]
 line-length = 88
-target-version = ['py37']
+target-version = ['py310']

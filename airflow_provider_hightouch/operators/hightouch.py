@@ -1,9 +1,8 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.utils.context import Context
+from airflow.sdk import BaseOperator, BaseOperatorLink
 
 from airflow_provider_hightouch.hooks.hightouch import HightouchHook
 from airflow_provider_hightouch.utils import parse_sync_run_details
@@ -44,6 +43,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
     """
 
     operator_extra_links = (HightouchLink(),)
+    template_fields: Sequence[str] = ("sync_id", "sync_slug")
 
     def __init__(
         self,
@@ -71,7 +71,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
         self.wait_seconds = wait_seconds
         self.timeout = timeout
 
-    def execute(self, context: Context) -> str:
+    def execute(self, context) -> str:
         """Start a Hightouch Sync Run"""
         hook = HightouchHook(
             hightouch_conn_id=self.hightouch_conn_id,

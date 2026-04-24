@@ -1,13 +1,10 @@
-.PHONY: build install
+.PHONY: build install clean
 
 build:
-	python3 -m build
+	uv build
 
-
-install: build
-	pip3 install -e .
+install:
+	uv sync
 
 clean:
-	rm -rf airflow_provider_hightouch.egg-info
-	rm -rf build
 	rm -rf dist

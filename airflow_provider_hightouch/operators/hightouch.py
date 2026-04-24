@@ -147,4 +147,6 @@ class HightouchTriggerSyncOperator(BaseOperator):
         if not event or event.get("status") != "success":
             raise AirflowException(f"Sync failed: {event}")
         self.log.info("Sync completed via trigger: %s", event)
-        return event
+        ti = context["task_instance"]
+        ti.xcom_push(key="sync_id", value=event.get("sync_id"))
+        ti.xcom_push(key="sync_run_id", value=event.get("sync_run_id"))

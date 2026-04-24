@@ -144,6 +144,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
                 return request_id
 
     def execute_complete(self, context, event=None):
-        if event:
-            self.log.info("Sync completed via trigger: %s", event)
+        if not event or event.get("status") != "success":
+            raise AirflowException(f"Sync failed: {event}")
+        self.log.info("Sync completed via trigger: %s", event)
         return event

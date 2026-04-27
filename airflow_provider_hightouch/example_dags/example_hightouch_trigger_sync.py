@@ -1,7 +1,7 @@
 import datetime
 
 from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
-from airflow.sdk import DAG
+from airflow.providers.common.compat.sdk import DAG
 
 from airflow_provider_hightouch.operators.hightouch import HightouchTriggerSyncOperator
 from airflow_provider_hightouch.sensors.hightouch import HightouchSyncRunSensor

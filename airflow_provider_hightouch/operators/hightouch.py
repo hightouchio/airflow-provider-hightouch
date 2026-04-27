@@ -1,8 +1,6 @@
 from typing import Optional, Sequence
 
-from airflow.exceptions import AirflowException
-from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.sdk import BaseOperator, BaseOperatorLink
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, TaskInstanceKey
 
 from airflow_provider_hightouch.hooks.hightouch import HightouchHook
 from airflow_provider_hightouch.utils import parse_sync_run_details

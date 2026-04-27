@@ -21,8 +21,9 @@ classifiers = [
 ]
 dependencies = [
     "requests",
-    "apache-airflow>=3.0.0",
-    "apache-airflow-providers-http>=6.0.0",
+    "apache-airflow>=2.10.0",
+    "apache-airflow-providers-common-compat>=1.14.0",
+    "apache-airflow-providers-http>=4.0.0",
 ]
 
 [project.urls]

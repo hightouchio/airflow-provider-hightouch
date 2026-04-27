@@ -1,7 +1,6 @@
 from typing import Optional
 
-from airflow.exceptions import AirflowException
-from airflow.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 
 from airflow_provider_hightouch.consts import (
     PENDING_STATUSES,

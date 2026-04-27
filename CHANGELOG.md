@@ -1,3 +1,23 @@
+## 5.0.0
+
+### BREAKING:
+
+* Drops support for Apache Airflow 2.x. Requires Airflow 3.0.0+.
+* Requires Python 3.10+.
+* Requires `apache-airflow-providers-http` as an explicit dependency (bundled in Airflow 2, separate in Airflow 3).
+
+### Changes:
+
+* Updates all imports to use `airflow.sdk` canonical paths (BaseOperator, BaseSensorOperator, BaseOperatorLink).
+* Removes `@apply_defaults` decorator (removed in Airflow 3).
+* Updates `HightouchLink.get_link()` to use `ti_key: TaskInstanceKey` keyword argument.
+* Removes dead Airflow 1.x import fallback in hook.
+* Consolidates duplicate `HightouchLink` class (now defined only in operators module).
+* Replaces wildcard import in sensor with explicit imports.
+* Adds `template_fields` to `HightouchTriggerSyncOperator` for Jinja templating of `sync_id` and `sync_slug`.
+* Fixes example DAG for Airflow 3 compatibility.
+* Adds sensor tests.
+
 ## 4.0.0
 
 - Introduces HightouchSyncRunSensor, which monitors the success or failure of a sync run

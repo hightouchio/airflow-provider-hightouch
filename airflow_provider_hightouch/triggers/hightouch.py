@@ -1,12 +1,7 @@
 import asyncio
 from typing import Any, AsyncIterator, Dict, Optional, Tuple
 
-from airflow.triggers.base import (
-    BaseTrigger,
-    TriggerEvent,
-    TaskSuccessEvent,
-    TaskFailedEvent,
-)
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow_provider_hightouch.hooks.hightouch import HightouchAsyncHook
 from airflow_provider_hightouch.consts import (
     PENDING_STATUSES,
@@ -69,7 +64,6 @@ class HightouchTrigger(BaseTrigger):
         self.end_from_trigger = end_from_trigger
         self.poll_interval = poll_interval
         self.error_on_warning = error_on_warning
-        self.hook = HightouchAsyncHook(hightouch_conn_id=self.connection_id)
 
     def serialize(self) -> Tuple[str, Dict[str, Any]]:
         """
@@ -106,6 +100,7 @@ class HightouchTrigger(BaseTrigger):
             AsyncIterator[TriggerEvent]: Events indicating the status of the sync run,
             which can be "success", "failed", "timeout", or the current status during polling.
         """
+        hook = HightouchAsyncHook(hightouch_conn_id=self.connection_id)
         start_time = asyncio.get_event_loop().time()
 
         while True:
@@ -115,12 +110,12 @@ class HightouchTrigger(BaseTrigger):
                 self.log.error(
                     f"{self.sync_run_url} exceeded DAG timeout of {self.timeout} seconds."
                 )
-                yield TaskFailedEvent()
+                yield TriggerEvent({"status": "timeout"})
                 return
 
             try:
                 # Fetch the current sync status
-                response = await self.hook.get_sync_run_details(
+                response = await hook.get_sync_run_details(
                     self.sync_id, self.sync_request_id
                 )
 
@@ -132,12 +127,11 @@ class HightouchTrigger(BaseTrigger):
                     or (status == WARNING and not self.error_on_warning)
                 ):
                     self.log.info(f"{self.sync_run_url} finished with status {status}!")
-                    yield TaskSuccessEvent(
-                        xcoms={
-                            "sync_id": self.sync_id,
-                            "sync_run_id": self.sync_request_id
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "success",
+                        "sync_id": self.sync_id,
+                        "sync_run_id": self.sync_request_id,
+                    })
                     return
 
                 elif status in PENDING_STATUSES:
@@ -152,10 +146,10 @@ class HightouchTrigger(BaseTrigger):
                         f"{self.sync_run_url} finished with status {status}!\n"
                         f"Sync Error: {response[0]['error']}"
                     )
-                    yield TaskFailedEvent()
+                    yield TriggerEvent({"status": "failed", "error": response[0].get("error")})
                     return
 
             except Exception as e:
                 self.log.error("Error while checking sync status: %s", str(e))
-                yield TaskFailedEvent()
+                yield TriggerEvent({"status": "error", "error": str(e)})
                 return

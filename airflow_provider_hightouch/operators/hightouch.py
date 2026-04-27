@@ -1,9 +1,8 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.utils.context import Context
+from airflow.sdk import BaseOperator, BaseOperatorLink
 
 from airflow_provider_hightouch.hooks.hightouch import HightouchHook
 from airflow_provider_hightouch.utils import parse_sync_run_details
@@ -44,6 +43,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
     """
 
     operator_extra_links = (HightouchLink(),)
+    template_fields: Sequence[str] = ("sync_id", "sync_slug")
 
     def __init__(
         self,
@@ -71,7 +71,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
         self.wait_seconds = wait_seconds
         self.timeout = timeout
 
-    def execute(self, context: Context) -> str:
+    def execute(self, context) -> str:
         """Start a Hightouch Sync Run"""
         hook = HightouchHook(
             hightouch_conn_id=self.hightouch_conn_id,
@@ -134,7 +134,7 @@ class HightouchTriggerSyncOperator(BaseOperator):
                         poll_interval=self.wait_seconds,
                         error_on_warning=self.error_on_warning,
                     ),
-                    method_name=None,
+                    method_name="execute_complete",
                 )
             else:
                 sync = self.sync_id or self.sync_slug
@@ -142,3 +142,11 @@ class HightouchTriggerSyncOperator(BaseOperator):
                     f"Successfully created request {request_id} to start sync: {sync}"
                 )
                 return request_id
+
+    def execute_complete(self, context, event=None):
+        if not event or event.get("status") != "success":
+            raise AirflowException(f"Sync failed: {event}")
+        self.log.info("Sync completed via trigger: %s", event)
+        ti = context["task_instance"]
+        ti.xcom_push(key="sync_id", value=event.get("sync_id"))
+        ti.xcom_push(key="sync_run_id", value=event.get("sync_run_id"))

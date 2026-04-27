@@ -1,12 +1,14 @@
-import datetime
 import aiohttp
 import asyncio
+import datetime
 import time
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
 from airflow.exceptions import AirflowException
+from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
+from airflow_provider_hightouch import __version__, utils
 from airflow_provider_hightouch.consts import (
     DEFAULT_POLL_INTERVAL,
     HIGHTOUCH_API_BASE_V3,
@@ -16,16 +18,6 @@ from airflow_provider_hightouch.consts import (
     WARNING,
 )
 from airflow_provider_hightouch.types import HightouchOutput
-
-from airflow.providers.http.hooks.http import HttpAsyncHook
-
-try:
-    from airflow.providers.http.hooks.http import HttpHook
-except ImportError:
-    from airflow.hooks.http_hook import HttpHook
-
-from airflow_provider_hightouch import __version__, utils
-
 
 class HightouchHook(HttpHook):
     """

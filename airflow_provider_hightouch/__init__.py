@@ -1,4 +1,7 @@
-from .version import __version__
+try:
+    from .version import __version__
+except Exception:
+    __version__ = "unknown"
 
 
 def get_provider_info():

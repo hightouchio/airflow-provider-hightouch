@@ -1,11 +1,12 @@
+import aiohttp
+import asyncio
 import datetime
-import json
 import time
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
 from airflow.exceptions import AirflowException
-from airflow.providers.http.hooks.http import HttpHook
+from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
 from airflow_provider_hightouch import __version__, utils
 from airflow_provider_hightouch.consts import (
@@ -17,7 +18,6 @@ from airflow_provider_hightouch.consts import (
     WARNING,
 )
 from airflow_provider_hightouch.types import HightouchOutput
-
 
 class HightouchHook(HttpHook):
     """
@@ -39,6 +39,7 @@ class HightouchHook(HttpHook):
         self.hightouch_conn_id = hightouch_conn_id
         self.api_version = api_version
         self._request_max_retries = request_max_retries
+        self.token = self.get_connection(self.hightouch_conn_id).password
         self._request_retry_delay = request_retry_delay
         if self.api_version not in ("v1", "v3"):
             raise AirflowException(
@@ -67,13 +68,10 @@ class HightouchHook(HttpHook):
             Dict[str, Any]: Parsed json data from the response to this request
         """
 
-        conn = self.get_connection(self.hightouch_conn_id)
-        token = conn.password
-
         user_agent = "AirflowHightouchOperator/" + __version__
         headers = {
             "accept": "application/json",
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {self.token}",
             "User-Agent": user_agent,
         }
 
@@ -256,3 +254,97 @@ class HightouchHook(HttpHook):
         )
 
         return ht_output
+
+
+class HightouchAsyncHook(HttpAsyncHook):
+    """
+    Extending the Hightouch hook for asynchronous functionality
+
+    Args:
+        hightouch_conn_id (str):  The name of the Airflow connection
+        with connection information for the Hightouch API
+        api_version: (optional(str)). Hightouch API version.
+    """
+
+    def __init__(
+        self,
+        hightouch_conn_id: str = "hightouch_default",
+        api_version: str = "v3",
+        request_max_retries: int = 3,
+        request_retry_delay: float = 0.5,
+    ):
+        self.hightouch_conn_id = hightouch_conn_id
+        self.api_version = api_version
+        self._request_max_retries = request_max_retries
+        self.token = self.get_connection(self.hightouch_conn_id).password
+        self._request_retry_delay = request_retry_delay
+        if self.api_version not in ("v1", "v3"):
+            raise AirflowException(
+                "This version of the Hightouch Operator only supports the v1/v3 API."
+            )
+        super().__init__(http_conn_id=hightouch_conn_id)
+
+    @property
+    def api_base_url(self) -> str:
+        """Returns the correct API BASE URL depending on the API version."""
+        return HIGHTOUCH_API_BASE_V3
+
+    async def get_sync_run_details(
+        self, sync_id: str, sync_request_id: str
+    ) -> List[Dict[str, Any]]:
+        """Get details about a given sync run from the Hightouch API.
+        Args:
+            sync_id (str): The Hightouch Sync ID.
+            sync_request_id (str): The Hightouch Sync Request ID.
+        Returns:
+            Dict[str, Any]: Parsed json data from the response
+        """
+        params = {"runId": sync_request_id}
+        return await self.make_request(
+            method="GET", endpoint=f"syncs/{sync_id}/runs", data=params
+        )
+
+    async def make_request(
+        self,
+        method: str,
+        endpoint: str,
+        data: Optional[Dict[str, Any]] = None,
+    ):
+        """Creates and sends a request to the desired Hightouch API endpoint
+        Args:
+            method (str): The http method use for this request (e.g. "GET", "POST").
+            endpoint (str): The Hightouch API endpoint to send this request to.
+            params (Optional(dict): Query parameters to pass to the API endpoint
+            body (Optional(dict): Body parameters to pass to the API endpoint
+        Returns:
+            Dict[str, Any]: Parsed json data from the response to this request
+        """
+
+        user_agent = "AirflowHightouchOperator/" + __version__
+        headers = {
+            "accept": "application/json",
+            "Authorization": f"Bearer {self.token}",
+            "User-Agent": user_agent,
+        }
+
+        num_retries = 0
+        while True:
+            try:
+                self.method = method
+                async with aiohttp.ClientSession() as session:
+                    response = await self.run(
+                        session=session,
+                        endpoint=urljoin(self.api_base_url, endpoint),
+                        data=data,
+                        headers=headers,
+                    )
+                    resp_dict = await response.json()
+                return resp_dict["data"] if "data" in resp_dict else resp_dict
+            except AirflowException as e:
+                self.log.error("Request to Hightouch API failed: %s", e)
+                if num_retries == self._request_max_retries:
+                    break
+                num_retries += 1
+                await asyncio.sleep(self._request_retry_delay)
+
+        raise AirflowException("Exceeded max number of retries.")

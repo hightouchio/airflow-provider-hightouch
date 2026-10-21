@@ -20,6 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "certifi>=2026.10.19",
     "requests",
     "apache-airflow>=3.0.0",
     "apache-airflow-providers-http>=6.0.0",
